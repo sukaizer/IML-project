@@ -9,7 +9,6 @@ import {
   sum,
   tidy,
   expandDims,
-  tensor,
   image as tfImage,
 } from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-core/dist/public/chained_ops/sum';
@@ -83,7 +82,6 @@ export class Gradcam extends Component {
           l.dispose();
         });
         dispose(this.modelCopy);
-        this.modelCopy = null;
       }
       if (this.subModels) {
         this.subModels.forEach((m) => {
@@ -92,7 +90,6 @@ export class Gradcam extends Component {
           });
           dispose(m);
         });
-        this.subModels = null;
       }
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -178,11 +175,12 @@ export class Gradcam extends Component {
     }
     // Generate the heatMap
     const g = tidy(() => {
-      // const inputShape = this.model.inputs[0].shape.map((x) => (x && x > 0 ? x : 1));
-      // const inputTensor = tfImage
-      //   .resizeBilinear(browser.fromPixels(image), [inputShape[1], inputShape[2]])
-      //   .expandDims(0);
-      const inputTensor = tensor(image).expandDims(0);
+      const inputShape = this.model.inputs[0].shape.map((x) => (x && x > 0 ? x : 1));
+      const inputTensor = tfImage
+        .resizeBilinear(browser.fromPixels(image), [inputShape[1], inputShape[2]])
+        .div(127.5)
+        .sub(1.0)
+        .expandDims(0);
 
       // Calculate the values of the last conv layer's output
       const model1OutputValues = this.subModels[0].apply(inputTensor);
