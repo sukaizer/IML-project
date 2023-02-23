@@ -8,16 +8,14 @@ import {
   dataStore,
   dataset,
   datasetBrowser,
-  mlpClassifier,
   modelParameters,
   trainingProgress,
   trainingPlot,
   select,
   imageDisplay,
-  mobileNet,
   text,
-  number,
-  mlpRegressor,
+  mobileNet,
+  mlpClassifier,
 } from '@marcellejs/core';
 import { gradcam, imageClassifier } from './components';
 
@@ -29,10 +27,6 @@ const input = webcam();
 
 const label = textInput();
 label.title = 'Instance label';
-
-const labelN = number();
-labelN.title = 'Instance label';
-
 const capture = button('Hold to record instances');
 capture.title = 'Capture instances to the training set';
 
@@ -40,17 +34,24 @@ const store = dataStore('localStorage');
 const trainingSet = dataset('training-set-dashboard', store);
 const trainingSetBrowser = datasetBrowser(trainingSet);
 
+const trainingSetReg = dataset('training-set-reg-dashboard', store);
+
 const featureExtractor = mobileNet();
+
+input.$images
+  .filter(() => capture.$pressed.get())
+  .map((x) => ({ x, y: label.$value.get(), thumbnail: input.$thumbnails.get() }))
+  .subscribe(trainingSet.create);
 
 input.$images
   .filter(() => capture.$pressed.get())
   .map(async (img) => ({
     x: await featureExtractor.process(img),
     thumbnail: input.$thumbnails.get(),
-    y: labelN.$value.get(),
+    y: label.$value.get(),
   }))
   .awaitPromises()
-  .subscribe(trainingSet.create);
+  .subscribe(trainingSetReg.create);
 
 // -----------------------------------------------------------
 // MODEL & TRAINING
@@ -58,16 +59,27 @@ input.$images
 
 const b = button('Train');
 b.title = 'Training Launcher';
-const classifier = mlpClassifier({ layers: [64, 32], epochs: 20 }).sync(store, 'classifierMLP');
-//const classifier = mlpRegressor({ layers: [64, 32], epochs: 20 }).sync(store, 'MLPRegressor');
 
-//const classifier = imageClassifier({ layers: [10] }).sync(store, 'custom-classifier');
+const classifier = imageClassifier({ layers: [10] }).sync(store, 'custom-classifier');
 
-b.$click.subscribe(() => classifier.train(trainingSet));
+const classifierMLP = mlpClassifier({ layers: [128, 64], epochs: 30 }).sync(store, 'mlp');
 
-const params = modelParameters(classifier);
-const prog = trainingProgress(classifier);
-const plotTraining = trainingPlot(classifier);
+b.$click.subscribe(() => {
+  classifier.train(trainingSet);
+  classifierMLP.train(trainingSetReg);
+});
+
+const paramsImage = modelParameters(classifier);
+paramsImage.title = 'Image classifier : Parameters';
+const progImage = trainingProgress(classifier);
+progImage.title = 'Image classifier : Training Progress';
+const plotTrainingImage = trainingPlot(classifier);
+plotTrainingImage.title = 'Image classifier : Plot';
+
+const paramsMLP = modelParameters(classifierMLP);
+paramsMLP.title = 'MLP : Parameters';
+const progressMLP = trainingProgress(classifierMLP);
+progressMLP.title = 'MLP: Training Progress';
 
 // -----------------------------------------------------------
 // SINGLE IMAGE PREDICTION
@@ -103,8 +115,8 @@ const $instances = trainingSetBrowser.$selected
 
 const $predictions = $instances.map(async (img) => classifier.predict(img)).awaitPromises();
 
-$predictions.subscribe(({ labelN }) => {
-  selectClass.$value.set(labelN);
+$predictions.subscribe(({ label }) => {
+  selectClass.$value.set(label);
 });
 
 const plotResults = confidencePlot($predictions);
@@ -128,12 +140,24 @@ const dash = dashboard({
   author: 'Marcelle Pirates Crew',
 });
 
-dash.page('Data Management').sidebar(input).use([labelN, capture], trainingSetBrowser);
-dash.page('Training').use(params, b, prog, plotTraining);
+dash.page('Data Management').sidebar(input).use([label, capture], trainingSetBrowser);
+dash
+  .page('Training')
+  .use(
+    b,
+    'Image Classifier',
+    paramsImage,
+    progImage,
+    'MLP',
+    paramsMLP,
+    progressMLP,
+    'Plots',
+    plotTrainingImage,
+  );
 dash
   .page('Inspect Predictions')
   .sidebar(hint, wc)
   .use(trainingSetBrowser, selectClass, gcDisplay, plotResults);
-dash.settings.dataStores(store).datasets(trainingSet).models(classifier);
+dash.settings.dataStores(store).datasets(trainingSet, trainingSetReg).models(classifier);
 
 dash.show();
