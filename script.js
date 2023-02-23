@@ -1,9 +1,11 @@
 import '@marcellejs/core/dist/marcelle.css';
+import { Howl } from 'https://cdn.skypack.dev/howler';
 import {
   dashboard,
   confidencePlot,
   webcam,
   textInput,
+  number,
   button,
   dataStore,
   dataset,
@@ -16,6 +18,7 @@ import {
   text,
   mobileNet,
   mlpClassifier,
+  mlpRegressor,
 } from '@marcellejs/core';
 import { gradcam, imageClassifier } from './components';
 
@@ -25,7 +28,7 @@ import { gradcam, imageClassifier } from './components';
 
 const input = webcam();
 
-const label = textInput();
+const label = number();
 label.title = 'Instance label';
 const capture = button('Hold to record instances');
 capture.title = 'Capture instances to the training set';
@@ -34,7 +37,8 @@ const store = dataStore('localStorage');
 const trainingSet = dataset('training-set-dashboard', store);
 const trainingSetBrowser = datasetBrowser(trainingSet);
 
-const trainingSetReg = dataset('training-set-reg-dashboard', store);
+const trainingSetMLP = dataset('training-set-mlp-dashboard', store);
+const trainingSetRegressor = dataset('training-set-reg-dashboard', store);
 
 const featureExtractor = mobileNet();
 
@@ -51,7 +55,17 @@ input.$images
     y: label.$value.get(),
   }))
   .awaitPromises()
-  .subscribe(trainingSetReg.create);
+  .subscribe(trainingSetMLP.create);
+
+input.$images
+  .filter(() => capture.$pressed.get())
+  .map(async (img) => ({
+    x: await featureExtractor.process(img),
+    thumbnail: input.$thumbnails.get(),
+    y: label.$value.get(),
+  }))
+  .awaitPromises()
+  .subscribe(trainingSetRegressor.create);
 
 // -----------------------------------------------------------
 // MODEL & TRAINING
@@ -64,9 +78,12 @@ const classifier = imageClassifier({ layers: [10] }).sync(store, 'custom-classif
 
 const classifierMLP = mlpClassifier({ layers: [128, 64], epochs: 30 }).sync(store, 'mlp');
 
+const classifierRegressor = mlpRegressor({ units: [64, 32], epochs: 50 });
+
 b.$click.subscribe(() => {
   classifier.train(trainingSet);
-  classifierMLP.train(trainingSetReg);
+  classifierMLP.train(trainingSetMLP);
+  classifierRegressor.train(trainingSetRegressor);
 });
 
 const paramsImage = modelParameters(classifier);
@@ -80,6 +97,11 @@ const paramsMLP = modelParameters(classifierMLP);
 paramsMLP.title = 'MLP : Parameters';
 const progressMLP = trainingProgress(classifierMLP);
 progressMLP.title = 'MLP: Training Progress';
+
+const paramsRegressor = modelParameters(classifierRegressor);
+paramsMLP.title = 'MLP Regression : Parameters';
+const progressRegressor = trainingProgress(classifierRegressor);
+progressMLP.title = 'MLP Regression: Training Progress';
 
 // -----------------------------------------------------------
 // SINGLE IMAGE PREDICTION
@@ -132,6 +154,53 @@ const gcDisplay = [
 ];
 
 // -----------------------------------------------------------
+// SOUNDS
+// -----------------------------------------------------------
+let isPlaying = null;
+
+const sound = new Howl({
+  src: ['src/sound.m4a'],
+});
+const sound2 = new Howl({
+  src: ['src/sound2.mp3'],
+});
+
+$predictions.subscribe(async ({ label }) => {
+  //console.log(label);
+  if (label === classifier.labels[0]) {
+    if (isPlaying === 0) {
+      //sound.play();
+    } else {
+      sound.play();
+      sound2.pause();
+      isPlaying = 0;
+    }
+  }
+  if (label === classifier.labels[1]) {
+    if (isPlaying === 1) {
+      //sound.play();
+    } else {
+      sound.pause();
+      sound2.play();
+      isPlaying = 1;
+    }
+  }
+});
+
+let playing = false;
+const musicButton = button('Push me');
+musicButton.title = 'play music';
+musicButton.$click.subscribe(() => {
+  if (playing) {
+    sound.pause();
+    playing = false;
+  } else {
+    sound.play();
+    playing = true;
+  }
+});
+
+// -----------------------------------------------------------
 // DASHBOARDS
 // -----------------------------------------------------------
 
@@ -148,6 +217,9 @@ dash
     'Image Classifier',
     paramsImage,
     progImage,
+    'MLP Regressor',
+    paramsRegressor,
+    progressRegressor,
     'MLP',
     paramsMLP,
     progressMLP,
@@ -157,7 +229,10 @@ dash
 dash
   .page('Inspect Predictions')
   .sidebar(hint, wc)
-  .use(trainingSetBrowser, selectClass, gcDisplay, plotResults);
-dash.settings.dataStores(store).datasets(trainingSet, trainingSetReg).models(classifier);
+  .use(musicButton, trainingSetBrowser, selectClass, gcDisplay, plotResults);
+dash.settings
+  .dataStores(store)
+  .datasets(trainingSet, trainingSetRegressor, trainingSetMLP)
+  .models(classifier);
 
 dash.show();

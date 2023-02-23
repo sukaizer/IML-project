@@ -170,7 +170,7 @@ export class Gradcam extends Component {
 
   explain(image, classIndex) {
     // useGuidedGrads = false
-    console.log(image);
+    console.log(classIndex);
     if (classIndex < 0) {
       throw new Error('Invalid class index!');
     }
