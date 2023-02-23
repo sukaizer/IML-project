@@ -3,10 +3,12 @@
 
 <head>
   <meta charset="utf-8" />
-  <title>Marcelle Example</title>
+  <title>FaceMusic</title>
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <script defer type="module" src="/script.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
@@ -16,7 +18,20 @@
       enable it to continue.
     </strong>
   </noscript>
-  <div id="app"></div>
+  <div id="app">
+        <div class="title">
+        Welcome to FaceMusic  
+        </div>
+        <p>This is an app using Marcelle made to help you understand live predictions of ML models for image recognition</p>
+        <p>1 - Activate your webcam and take a few snapshots for a particular face</p>
+        <p>2 - Setup a new label and do it again for a new facial expression</p>
+        <p>3 - Now you can go to the Training tab and press the training button</p>
+        <p>4 - Go to the Inspect Prediction tab and activate your webcam</p>
+        <p> Some music will play whether it's from class 'a' or 'b'</p>
+        <p>5 - You're good to go ! Now press this button and start !</p>
+        <br>
+        <button class="btn" id="dash">Go to dashboard</button>
+  </div>
 </body>
 
 </html>

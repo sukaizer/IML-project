@@ -17,7 +17,6 @@ import {
   imageDisplay,
   text,
   mobileNet,
-  mlpClassifier,
   mlpRegressor,
 } from '@marcellejs/core';
 import { gradcam, imageClassifier } from './components';
@@ -26,8 +25,11 @@ import { gradcam, imageClassifier } from './components';
 // INPUT PIPELINE & CLASSIFICATION
 // -----------------------------------------------------------
 
-const input = webcam();
+const hintData = text('Activate the webcam and start taking snapshots to create your dataset');
+hintData.title = 'Hint';
 
+const input = webcam();
+// for reg uses numeric values
 const label = number();
 label.title = 'Instance label';
 const capture = button('Hold to record instances');
@@ -36,8 +38,7 @@ capture.title = 'Capture instances to the training set';
 const store = dataStore('localStorage');
 const trainingSet = dataset('training-set-dashboard', store);
 const trainingSetBrowser = datasetBrowser(trainingSet);
-
-const trainingSetMLP = dataset('training-set-mlp-dashboard', store);
+//second trainingset for regression
 const trainingSetRegressor = dataset('training-set-reg-dashboard', store);
 
 const featureExtractor = mobileNet();
@@ -55,53 +56,43 @@ input.$images
     y: label.$value.get(),
   }))
   .awaitPromises()
-  .subscribe(trainingSetMLP.create);
-
-input.$images
-  .filter(() => capture.$pressed.get())
-  .map(async (img) => ({
-    x: await featureExtractor.process(img),
-    thumbnail: input.$thumbnails.get(),
-    y: label.$value.get(),
-  }))
-  .awaitPromises()
   .subscribe(trainingSetRegressor.create);
 
 // -----------------------------------------------------------
 // MODEL & TRAINING
 // -----------------------------------------------------------
 
+const hintTrain = text(
+  'Train the model with your data here. You can change the parameters to better fit your data',
+);
+hintTrain.title = 'Hint';
+
 const b = button('Train');
 b.title = 'Training Launcher';
 
 const classifier = imageClassifier({ layers: [10] }).sync(store, 'custom-classifier');
 
-const classifierMLP = mlpClassifier({ layers: [128, 64], epochs: 30 }).sync(store, 'mlp');
-
-const classifierRegressor = mlpRegressor({ units: [64, 32], epochs: 50 });
+const regressionMLP = mlpRegressor({ units: [64, 32], epochs: 20 }).sync(store, 'reg');
+regressionMLP.$training.subscribe(console.log);
 
 b.$click.subscribe(() => {
   classifier.train(trainingSet);
-  classifierMLP.train(trainingSetMLP);
-  classifierRegressor.train(trainingSetRegressor);
+  regressionMLP.train(trainingSetRegressor);
 });
 
 const paramsImage = modelParameters(classifier);
 paramsImage.title = 'Image classifier : Parameters';
 const progImage = trainingProgress(classifier);
 progImage.title = 'Image classifier : Training Progress';
-const plotTrainingImage = trainingPlot(classifier);
-plotTrainingImage.title = 'Image classifier : Plot';
 
-const paramsMLP = modelParameters(classifierMLP);
-paramsMLP.title = 'MLP : Parameters';
-const progressMLP = trainingProgress(classifierMLP);
-progressMLP.title = 'MLP: Training Progress';
-
-const paramsRegressor = modelParameters(classifierRegressor);
-paramsMLP.title = 'MLP Regression : Parameters';
-const progressRegressor = trainingProgress(classifierRegressor);
-progressMLP.title = 'MLP Regression: Training Progress';
+const paramsRegressor = modelParameters(regressionMLP);
+paramsRegressor.title = 'MLP Regression : Parameters';
+const progressRegressor = trainingProgress(regressionMLP);
+paramsRegressor.title = 'MLP Regression: Training Progress';
+const plotTrainingReg = trainingPlot(regressionMLP, {
+  Loss: ['loss', 'lossVal'],
+  'Mean Absolute Error': ['meanAbsoluteError2', 'meanAbsoluteError2Val'],
+});
 
 // -----------------------------------------------------------
 // SINGLE IMAGE PREDICTION
@@ -116,7 +107,9 @@ classifier.$training.subscribe(({ status }) => {
   }
 });
 
-const hint = text('Select an image in the dataset browser to inspect predictions and Grad-CAM');
+const hint = text(
+  'Select an image in the dataset browser to inspect predictions and Grad-CAM. Click on play to play music and see what happens',
+);
 hint.title = 'Hint';
 const selectClass = select([]);
 selectClass.title = 'Select the class to inspect';
@@ -133,7 +126,7 @@ const $instances = trainingSetBrowser.$selected
   .map(([id]) => trainingSet.get(id))
   .awaitPromises()
   .map(({ x }) => x)
-  .merge(wc.$images.throttle(500));
+  .merge(wc.$images.throttle(300));
 
 const $predictions = $instances.map(async (img) => classifier.predict(img)).awaitPromises();
 
@@ -152,6 +145,17 @@ const gcDisplay = [
       .awaitPromises(),
   ),
 ];
+
+const $predictionsRegressor = wc.$images
+  .throttle(500)
+  .map(async (img) => regressionMLP.predict(await featureExtractor.process(img)))
+  .awaitPromises();
+
+$predictionsRegressor.subscribe(async ({ label }) => {
+  console.log(label);
+});
+
+const plotResultsReg = confidencePlot($predictionsRegressor);
 
 // -----------------------------------------------------------
 // SOUNDS
@@ -205,13 +209,14 @@ musicButton.$click.subscribe(() => {
 // -----------------------------------------------------------
 
 const dash = dashboard({
-  title: 'Marcelle: Grad-CAM Example',
-  author: 'Marcelle Pirates Crew',
+  title: 'FaceMusic',
+  author: 'Aki, Alexandre, David, Alegria',
 });
 
-dash.page('Data Management').sidebar(input).use([label, capture], trainingSetBrowser);
+dash.page('Data Management').sidebar(hintData, input).use([label, capture], trainingSetBrowser);
 dash
   .page('Training')
+  .sidebar(hintTrain)
   .use(
     b,
     'Image Classifier',
@@ -220,19 +225,23 @@ dash
     'MLP Regressor',
     paramsRegressor,
     progressRegressor,
-    'MLP',
-    paramsMLP,
-    progressMLP,
-    'Plots',
-    plotTrainingImage,
+    'Regression plots',
+    plotTrainingReg,
   );
 dash
   .page('Inspect Predictions')
-  .sidebar(hint, wc)
-  .use(musicButton, trainingSetBrowser, selectClass, gcDisplay, plotResults);
-dash.settings
-  .dataStores(store)
-  .datasets(trainingSet, trainingSetRegressor, trainingSetMLP)
-  .models(classifier);
+  .sidebar(hint, wc, musicButton)
+  .use(
+    'Dataset',
+    trainingSetBrowser,
+    selectClass,
+    'Visualisation',
+    gcDisplay,
+    plotResults,
+    plotResultsReg,
+  );
+dash.settings.dataStores(store).datasets(trainingSet, trainingSetRegressor).models(classifier);
 
-dash.show();
+$('#dash').click(function () {
+  dash.show();
+});
