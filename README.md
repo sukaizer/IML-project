@@ -1,17 +1,14 @@
-# ~TODO~
+# FaceMusic
 
-> A [Marcelle](https://marcelle.dev) Application
+## An Interactive Machine Learning Project using Marcelle to help users understand live predictions of ML models for image recognition
 
-## Available Scripts
+<br>
 
-### npm run dev
+### Contributors
 
-Runs the app in the development mode.
-Open http://localhost:3000 to view it in the browser.
+Alexandre Ciorascu
+Aki Matsunaga
+David Maruscsak
+Alegria Haro
 
-The page will reload if you make edits.
-
-### npm run build
-
-Builds a static copy of your site to the `dist/` folder.
-Your app is ready to be deployed!
+Download archive and run `npm install` then `npm run dev`

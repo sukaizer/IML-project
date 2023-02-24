@@ -48,6 +48,7 @@ input.$images
   .map((x) => ({ x, y: label.$value.get(), thumbnail: input.$thumbnails.get() }))
   .subscribe(trainingSet.create);
 
+// process image data for regression
 /*
 input.$images
   .filter(() => capture.$pressed.get())
@@ -79,6 +80,7 @@ regressionMLP.$training.subscribe(console.log);
 
 b.$click.subscribe(() => {
   classifier.train(trainingSet);
+  //train of reg model
   //regressionMLP.train(trainingSetRegressor);
 });
 
@@ -147,6 +149,7 @@ const gcDisplay = [
       .awaitPromises(),
   ),
 ];
+
 /*
 const $predictionsRegressor = wc.$images
   .throttle(500)
@@ -162,6 +165,7 @@ const plotResultsReg = confidencePlot($predictionsRegressor);
 // -----------------------------------------------------------
 // SOUNDS
 // -----------------------------------------------------------
+// Only 2 sounds loaded for the demo, create an array with a db of sounds and assign randomly each sound to a label iterator
 let isPlaying = null;
 
 const sound = new Howl({
