@@ -2,7 +2,6 @@
 
 ## An Interactive Machine Learning Project using Marcelle to help users understand live predictions of ML models for image recognition
 
-<br>
 
 ### Contributors
 
