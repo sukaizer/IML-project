@@ -6,6 +6,8 @@
 
 ### Contributors
 
+Group 4
+<br>
 Alexandre Ciorascu
 Aki Matsunaga
 David Maruscsak
