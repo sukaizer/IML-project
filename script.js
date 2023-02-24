@@ -41,13 +41,14 @@ const trainingSetBrowser = datasetBrowser(trainingSet);
 //second trainingset for regression
 const trainingSetRegressor = dataset('training-set-reg-dashboard', store);
 
-const featureExtractor = mobileNet();
+//const featureExtractor = mobileNet();
 
 input.$images
   .filter(() => capture.$pressed.get())
   .map((x) => ({ x, y: label.$value.get(), thumbnail: input.$thumbnails.get() }))
   .subscribe(trainingSet.create);
 
+/*
 input.$images
   .filter(() => capture.$pressed.get())
   .map(async (img) => ({
@@ -57,6 +58,7 @@ input.$images
   }))
   .awaitPromises()
   .subscribe(trainingSetRegressor.create);
+  */
 
 // -----------------------------------------------------------
 // MODEL & TRAINING
@@ -77,7 +79,7 @@ regressionMLP.$training.subscribe(console.log);
 
 b.$click.subscribe(() => {
   classifier.train(trainingSet);
-  regressionMLP.train(trainingSetRegressor);
+  //regressionMLP.train(trainingSetRegressor);
 });
 
 const paramsImage = modelParameters(classifier);
@@ -145,7 +147,7 @@ const gcDisplay = [
       .awaitPromises(),
   ),
 ];
-
+/*
 const $predictionsRegressor = wc.$images
   .throttle(500)
   .map(async (img) => regressionMLP.predict(await featureExtractor.process(img)))
@@ -156,7 +158,7 @@ $predictionsRegressor.subscribe(async ({ label }) => {
 });
 
 const plotResultsReg = confidencePlot($predictionsRegressor);
-
+*/
 // -----------------------------------------------------------
 // SOUNDS
 // -----------------------------------------------------------
@@ -231,15 +233,7 @@ dash
 dash
   .page('Inspect Predictions')
   .sidebar(hint, wc, musicButton)
-  .use(
-    'Dataset',
-    trainingSetBrowser,
-    selectClass,
-    'Visualisation',
-    gcDisplay,
-    plotResults,
-    plotResultsReg,
-  );
+  .use('Dataset', trainingSetBrowser, selectClass, 'Visualisation', gcDisplay, plotResults);
 dash.settings.dataStores(store).datasets(trainingSet, trainingSetRegressor).models(classifier);
 
 $('#dash').click(function () {
